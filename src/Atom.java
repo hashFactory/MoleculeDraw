@@ -9,7 +9,7 @@ public class Atom
     public Ellipse2D shape;
     public int width = 30;
     public int height = 30;
-    public Label text;
+    public boolean selected = false;
 
     public Atom(String _symbol, int pos_x, int pos_y)
     {
