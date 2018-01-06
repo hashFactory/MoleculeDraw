@@ -110,6 +110,11 @@ public class Main extends JApplet implements Runnable, MouseListener, KeyListene
         g.drawImage(offscreen, 0, 0, this);
     }
 
+    public void stop()
+    {
+        System.exit(0);
+    }
+
     @Override
     public void run()
     {
@@ -181,6 +186,16 @@ public class Main extends JApplet implements Runnable, MouseListener, KeyListene
         return false;
     }
 
+    public void initialize_loaded_data(DataPackage dp)
+    {
+        setSize(dp._width, dp._height);
+        grid_x = dp._grid_x;
+        grid_y = dp._grid_y;
+
+        atoms = dp._atoms;
+        bonds = dp._bonds;
+    }
+
     @Override
     public void mouseClicked(MouseEvent e)
     {
@@ -231,7 +246,15 @@ public class Main extends JApplet implements Runnable, MouseListener, KeyListene
         {
             if (e.getKeyChar() == '\n')
             {
-                Save.save("save.file", getWidth(), getHeight(), grid_x, grid_y, atoms, bonds);
+                if (buffer_command.equalsIgnoreCase("save"))
+                    Save.save("save.file", getWidth(), getHeight(), grid_x, grid_y, atoms, bonds);
+                if (buffer_command.equalsIgnoreCase("load"))
+                {
+                    DataPackage dp = Load.load("save.file");
+                    initialize_loaded_data(dp);
+                }
+                if (buffer_command.equalsIgnoreCase("exit"))
+                    stop();
                 buffer_command = "";
             }
             else if (e.getKeyChar() == '\b')

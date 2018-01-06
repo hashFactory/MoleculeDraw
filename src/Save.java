@@ -20,6 +20,8 @@ public class Save
             for (Bond b: bonds)
                 pout.println("b " + b.bond_width + " " + b.atom_index_1 + " " + b.atom_index_2);
 
+            pout.flush();
+
         } catch (FileNotFoundException e) {}
     }
 }
