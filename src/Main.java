@@ -15,6 +15,9 @@ public class Main extends JApplet implements Runnable, MouseListener, KeyListene
     Image offscreen;
     boolean[] texts = new boolean[20];
     String buffer_symbol = "";
+    String buffer_command = "";
+    int grid_x = 20;
+    int grid_y = 20;
 
     public void init()
     {
@@ -43,20 +46,27 @@ public class Main extends JApplet implements Runnable, MouseListener, KeyListene
         bufferGraphics.setColor(Color.lightGray);
 
         int w, h;
-        int width = (int)(getWidth() / 20.0), height = (int)(getHeight() / 20.0);
+        double width = (getWidth() / 20.0), height = (getHeight() / 20.0);
 
         for (w = 0; w <= getWidth(); w+=width)
             for (h = 0; h <= getHeight(); h+=height)
-                bufferGraphics.drawLine((int)w, (int)h, (int)w+1, (int)h+1);
+                bufferGraphics.drawLine((int)(w-(width/2.0)), (int)(h-(height/2.0)), (int)(w+1-(width/2.0)), (int)(h+1-(height/2.0)));
 
         // Draw bonds
         bufferGraphics.setColor(Color.black);
         for (Bond b : bonds)
         {
-            bufferGraphics.setStroke(new BasicStroke(3));
-            for (int i = 0; i < b.bond_width; i++)
-                bufferGraphics.drawLine((int)atoms.get(b.atom_index_1).shape.getX() + (int)atoms.get(b.atom_index_1).shape.getWidth() / 2 + (i * 5), (int)atoms.get(b.atom_index_1).shape.getY() + (int)atoms.get(b.atom_index_1).shape.getHeight() / 2 + (i * 5), (int)atoms.get(b.atom_index_2).shape.getX() + (int)atoms.get(b.atom_index_2).shape.getWidth() / 2 + (i * 5), (int)atoms.get(b.atom_index_2).shape.getY() + (int)atoms.get(b.atom_index_2).shape.getHeight() / 2 + (i * 5));
+            bufferGraphics.setStroke(new BasicStroke(2));
 
+            Atom a_1 = atoms.get(b.atom_index_1);
+            Atom a_2 = atoms.get(b.atom_index_2);
+            double slope = Math.atan((a_2.shape.getY() - a_1.shape.getY()) / (a_2.shape.getX() - a_1.shape.getX()));
+            slope += Math.PI / 2;
+            double displacement_x = 6 * Math.cos(slope);
+            double displacement_y = 6 * Math.sin(slope);
+
+            for (int i = 0; i < b.bond_width; i++)
+                bufferGraphics.drawLine((int)(a_1.shape.getX() + a_1.shape.getWidth() / 2 + displacement_x * i), (int)(a_1.shape.getY() + a_1.shape.getHeight() / 2 + displacement_y * i), (int)(a_2.shape.getX() + a_2.shape.getWidth() / 2 + displacement_x * i), (int)(a_2.shape.getY() + a_2.shape.getHeight() / 2 + displacement_y * i));
         }
 
         // Draw atoms
@@ -85,7 +95,17 @@ public class Main extends JApplet implements Runnable, MouseListener, KeyListene
 
         bufferGraphics.setStroke(new BasicStroke(1));
 
+        if (get_selected() == 1)
+            bufferGraphics.setFont(new Font("Arial", Font.BOLD, 20));
         bufferGraphics.drawString("Buffered symbol: " + buffer_symbol, 0, 20);
+        if (get_selected() == 1)
+            bufferGraphics.setFont(new Font("Arial", Font.PLAIN, 20));
+
+        if (get_selected() == 0)
+            bufferGraphics.setFont(new Font("Arial", Font.BOLD, 20));
+        bufferGraphics.drawString("Buffered command: " + buffer_command, 0, 40);
+        if (get_selected() == 0)
+            bufferGraphics.setFont(new Font("Arial", Font.PLAIN, 20));
 
         g.drawImage(offscreen, 0, 0, this);
     }
@@ -114,12 +134,8 @@ public class Main extends JApplet implements Runnable, MouseListener, KeyListene
 
         ArrayList<Integer> selected_atoms = new ArrayList<>(2);
         for (int i = 0; i < atoms.size(); i++)
-        {
             if (atoms.get(i).selected)
-            {
                 selected_atoms.add(i);
-            }
-        }
 
         if (selected_atoms.size() == 2)
         {
@@ -131,9 +147,8 @@ public class Main extends JApplet implements Runnable, MouseListener, KeyListene
         {
             System.out.println("added");
             bonds.add(bond);
-            /*
-            for (int i = 0; i < atoms.size(); i++)
-                atoms.get(i).selected = false;*/
+            for (Atom a : atoms)
+                a.selected = false;
         }
     }
 
@@ -174,9 +189,8 @@ public class Main extends JApplet implements Runnable, MouseListener, KeyListene
             if (a.shape.contains(e.getX(), e.getY()))
                 create = false;
 
-        int x = (-(e.getX() % (getWidth() / 20)) + e.getX());
-        int y = (-(e.getY() % (getHeight() / 20)) + e.getY());
-
+        int x = (int)(e.getX() - (e.getX() % (getWidth() / 20.0)) + (getWidth() / 40.0));
+        int y = (int)(e.getY() - (e.getY() % (getHeight() / 20.0)) + (getHeight() / 40.0));
 
         Atom atom = new Atom("C", x, y);
 
@@ -213,6 +227,24 @@ public class Main extends JApplet implements Runnable, MouseListener, KeyListene
     @Override
     public void keyTyped(KeyEvent e)
     {
+        if (get_selected() == 0)
+        {
+            if (e.getKeyChar() == '\n')
+            {
+                Save.save("save.file", getWidth(), getHeight(), grid_x, grid_y, atoms, bonds);
+                buffer_command = "";
+            }
+            else if (e.getKeyChar() == '\b')
+            {
+                if (buffer_command.length() >= 1)
+                    buffer_command = buffer_command.substring(0, buffer_command.length() - 1);
+            }
+            else
+            {
+                buffer_command += e.getKeyChar();
+            }
+        }
+
         if (get_selected() == 2)
         {
             if (e.getKeyChar() <= '9' && e.getKeyChar() >= '1')
@@ -232,21 +264,20 @@ public class Main extends JApplet implements Runnable, MouseListener, KeyListene
                     bond = new Bond(Integer.parseInt(e.getKeyChar() + ""), selected_atoms.get(0), selected_atoms.get(1));
 
                 // TODO: Replace preexisting bond if it exists
-                Bond temp_bond = null;
                 boolean exists = false;
                 int remove = 0;
-                    for (Bond b : bonds)
+                for (int i = 0; i < bonds.size(); i++)
+                {
+                    if (bonds.get(i).atom_index_1 == bond.atom_index_1 && bonds.get(i).atom_index_2 == bond.atom_index_2)
                     {
-                        if (b.atom_index_1 == bond.atom_index_1 && b.atom_index_2 == bond.atom_index_2)
-                        {
-                            exists = true;
-
-                        }
+                        exists = true;
+                        remove = i;
+                        break;
                     }
+                }
 
                 if (exists)
                 {
-                    System.out.println("exists");
                     bonds.remove(remove);
                     Bond new_bond = new Bond(Integer.parseInt(e.getKeyChar() + ""), selected_atoms.get(0), selected_atoms.get(1));
                     bonds.add(new_bond);
@@ -283,11 +314,6 @@ public class Main extends JApplet implements Runnable, MouseListener, KeyListene
                 buffer_symbol += e.getKeyChar();
             }
 
-        }
-
-        if (e.getKeyChar() == ' ')
-        {
-            bond();
         }
     }
 
